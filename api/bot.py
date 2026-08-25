@@ -1,6 +1,5 @@
 """
 Telegram Bot - Webhook mode for Vercel serverless
-Handles updates from Telegram via webhook
 """
 import sys
 import os
@@ -20,7 +19,6 @@ TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
 
 def send_message(chat_id, text, parse_mode="Markdown", reply_markup=None):
-    """Send a message to a Telegram chat"""
     payload = {
         "chat_id": chat_id,
         "text": text,
@@ -37,7 +35,6 @@ def send_message(chat_id, text, parse_mode="Markdown", reply_markup=None):
 
 
 def answer_callback(callback_id, text=None):
-    """Answer a callback query"""
     payload = {"callback_query_id": callback_id}
     if text:
         payload["text"] = text
@@ -48,50 +45,48 @@ def answer_callback(callback_id, text=None):
 
 
 def format_signal(signal):
-    """Format signal for Telegram message"""
-    text = f"""*{signal["symbol"]}*
-Price: ${signal["price"]:,.2f}
-Signal: *{signal["signal"]}*
-Score: {signal["score"]}
-
-*Indicators:*
-"""
+    lines = []
+    lines.append(f"\U0001F4CA *{signal['symbol']}*")
+    lines.append(f"Price: ${signal['price']:,.2f}")
+    lines.append(f"Signal: *{signal['signal']}*")
+    lines.append(f"Score: {signal['score']}")
+    lines.append("")
+    lines.append("*Indicators:*")
     ind = signal.get("indicators", {})
     if ind.get("rsi"):
-        text += f"  - RSI: {ind["rsi"]}\n"
+        lines.append(f"  - RSI: {ind['rsi']}")
     if ind.get("macd"):
-        text += f"  - MACD: {ind["macd"]["macd"]} / Signal: {ind["macd"]["signal"]}\n"
+        lines.append(f"  - MACD: {ind['macd']['macd']} / Signal: {ind['macd']['signal']}")
     if ind.get("moving_averages"):
         for k, v in ind["moving_averages"].items():
-            text += f"  - {k.upper()}: ${v:,.2f}\n"
-    text += "\n*Details:*\n"
+            lines.append(f"  - {k.upper()}: ${v:,.2f}")
+    lines.append("")
+    lines.append("*Details:*")
     for d in signal.get("details", []):
-        text += f"  - {d}\n"
-    return text
+        lines.append(f"  - {d}")
+    return "\n".join(lines)
 
 
 def get_main_menu():
-    """Return the main menu keyboard"""
     return {
         "inline_keyboard": [
             [
-                {"text": "BTC Signal", "callback_data": "signal_BTC-USDT"},
-                {"text": "ETH Signal", "callback_data": "signal_ETH-USDT"},
+                {"text": "\U0001F4CA BTC Signal", "callback_data": "signal_BTC-USDT"},
+                {"text": "\U0001F4CA ETH Signal", "callback_data": "signal_ETH-USDT"},
             ],
             [
-                {"text": "SOL Signal", "callback_data": "signal_SOL-USDT"},
-                {"text": "XRP Signal", "callback_data": "signal_XRP-USDT"},
+                {"text": "\U0001F4CA SOL Signal", "callback_data": "signal_SOL-USDT"},
+                {"text": "\U0001F4CA XRP Signal", "callback_data": "signal_XRP-USDT"},
             ],
             [
-                {"text": "Top 10 Signals", "callback_data": "top10"},
-                {"text": "Live Prices", "callback_data": "prices"},
+                {"text": "\U0001F525 Top 10 Signals", "callback_data": "top10"},
+                {"text": "\U0001F4B0 Live Prices", "callback_data": "prices"},
             ],
         ]
     }
 
 
 def handle_command(chat_id, command, args=None):
-    """Handle slash commands"""
     if command == "start":
         keyboard = get_main_menu()
         send_message(
@@ -133,7 +128,7 @@ def handle_command(chat_id, command, args=None):
             return
         text = "*Top 10 Crypto Signals*\n"
         for s in signals:
-            text += f"{s["signal"]} {s["symbol"]} - ${s["price"]:,.2f} (score: {s["score"]})\n"
+            text += f"{s['signal']} {s['symbol']} - ${s['price']:,.2f} (score: {s['score']})\n"
         send_message(chat_id, text)
     elif command == "prices":
         symbols = ["BTC-USDT", "ETH-USDT", "SOL-USDT", "XRP-USDT", "DOGE-USDT"]
@@ -148,7 +143,6 @@ def handle_command(chat_id, command, args=None):
 
 
 def handle_callback(chat_id, callback_id, data):
-    """Handle callback queries from inline keyboards"""
     answer_callback(callback_id)
     if data.startswith("signal_"):
         symbol = data.replace("signal_", "")
@@ -169,7 +163,7 @@ def handle_callback(chat_id, callback_id, data):
             return
         text = "*Top 10 Crypto Signals*\n"
         for s in signals:
-            text += f"{s["signal"]} {s["symbol"]} - ${s["price"]:,.2f} (score: {s["score"]})\n"
+            text += f"{s['signal']} {s['symbol']} - ${s['price']:,.2f} (score: {s['score']})\n"
         keyboard = get_main_menu()
         send_message(chat_id, text, reply_markup=keyboard)
     elif data == "prices":
@@ -185,12 +179,10 @@ def handle_callback(chat_id, callback_id, data):
 
 @app.route("/bot/webhook", methods=["POST"])
 def webhook():
-    """Handle incoming Telegram updates"""
     update = request.get_json()
     if not update:
         return jsonify({"status": "ok"})
 
-    # Handle callback queries
     if "callback_query" in update:
         cb = update["callback_query"]
         chat_id = cb["message"]["chat"]["id"]
@@ -199,7 +191,6 @@ def webhook():
         handle_callback(chat_id, callback_id, data)
         return jsonify({"status": "ok"})
 
-    # Handle messages
     if "message" in update:
         msg = update["message"]
         chat_id = msg["chat"]["id"]
@@ -214,7 +205,6 @@ def webhook():
             keyboard = get_main_menu()
             send_message(chat_id, "Hi! I'm the Crypto Signals Bot. Select an option:", reply_markup=keyboard)
         else:
-            # Try to parse as symbol
             symbol = text.upper().replace("/", "-")
             if not symbol.endswith("-USDT"):
                 symbol = symbol + "-USDT" if "-" not in symbol else symbol
@@ -233,35 +223,26 @@ def webhook():
 
 @app.route("/bot/setwebhook", methods=["GET"])
 def set_webhook():
-    """Set the Telegram webhook URL"""
     base_url = request.host_url.rstrip("/")
     webhook_url = f"{base_url}/bot/webhook"
-
     resp = requests.get(
         f"{TELEGRAM_API}/setWebhook",
         params={"url": webhook_url},
         timeout=10,
     )
     result = resp.json()
-
-    # Also send a welcome message
     if result.get("ok"):
         return jsonify({
             "status": "ok",
             "webhook_url": webhook_url,
             "telegram_response": result,
-            "bot_username": "Btccryptominerdoublesbtc_bot",
         })
     else:
-        return jsonify({
-            "status": "error",
-            "telegram_response": result,
-        })
+        return jsonify({"status": "error", "telegram_response": result})
 
 
 @app.route("/bot/info", methods=["GET"])
 def bot_info():
-    """Get bot info"""
     resp = requests.get(f"{TELEGRAM_API}/getMe", timeout=10)
     return jsonify(resp.json())
 
