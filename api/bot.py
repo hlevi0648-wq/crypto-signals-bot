@@ -1,10 +1,11 @@
 """
 Telegram Bot - Webhook mode for Vercel serverless
-Now with paper trading (simulated portfolio)
+Now with paper trading + Stripe premium link
 """
 import sys
 import os
 import json
+import time
 import requests
 from flask import Flask, request, jsonify
 
@@ -21,6 +22,9 @@ app = Flask(__name__)
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "7836189904:AAEqzPSyCfutHAZJJdXTe7t0lTIfPxiLcNU")
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
+STRIPE_LINK = "https://buy.stripe.com/9B63cwg9N9aB2BI0bf6oo00"
+LANDING_LINK = "https://crypto-signals-bot-x53oinl1.agent.mira.tg"
+DASHBOARD_LINK = "https://crypto-signals-bot-umber.vercel.app"
 
 
 def send_message(chat_id, text, parse_mode="Markdown", reply_markup=None):
@@ -113,6 +117,7 @@ def get_main_menu():
                 {"text": "\U0001F4B9 Sell", "callback_data": "trade_sell"},
             ],
             [
+                {"text": "\U0001F451 Premium $5/mo", "callback_data": "premium"},
                 {"text": "\U00002753 Help", "callback_data": "help"},
             ],
         ]
@@ -159,6 +164,23 @@ def get_sell_menu(user_id):
     return {"inline_keyboard": keyboard}
 
 
+def get_premium_menu():
+    return {
+        "inline_keyboard": [
+            [
+                {"text": "\U0001F451 Upgrade to Premium — $5/mo", "url": STRIPE_LINK},
+            ],
+            [
+                {"text": "\U0001F310 Landing Page", "url": LANDING_LINK},
+                {"text": "\U0001F5A5 Dashboard", "url": DASHBOARD_LINK},
+            ],
+            [
+                {"text": "\U00002B05 Back", "callback_data": "menu"},
+            ],
+        ]
+    }
+
+
 def handle_command(chat_id, command, args=None, user_id=None):
     uid = user_id or chat_id
 
@@ -190,6 +212,7 @@ def handle_command(chat_id, command, args=None, user_id=None):
             "/deposit <USD> - Add paper money\n"
             "/withdraw <USD> - Remove paper money\n"
             "/history - Trade history\n"
+            "/premium - Upgrade to Premium\n"
             "/help - This message",
         )
     elif command == "signal":
@@ -304,6 +327,22 @@ def handle_command(chat_id, command, args=None, user_id=None):
             elif t['type'] == 'withdraw':
                 text += f"  [{ts}] WITHDRAW -${t['amount']:,.2f}\n"
         send_message(chat_id, text)
+    elif command == "premium":
+        keyboard = get_premium_menu()
+        send_message(
+            chat_id,
+            "*\U0001F451 Crypto Signals Premium*\n\n"
+            "Unlock everything:\n"
+            "\U00002705 All 12+ symbols\n"
+            "\U00002705 Advanced signals + alerts\n"
+            "\U00002705 Unlimited paper trading\n"
+            "\U00002705 Trade history export\n"
+            "\U00002705 API access (1000 req/day)\n"
+            "\U00002705 Priority support\n\n"
+            "*$5/month* — cancel anytime\n\n"
+            "Tap below to upgrade:",
+            reply_markup=keyboard,
+        )
     else:
         send_message(chat_id, "Unknown command. Send /help for available commands.")
 
@@ -317,6 +356,22 @@ def handle_callback(chat_id, callback_id, data, user_id=None):
         send_message(chat_id, "Main menu:", reply_markup=keyboard)
     elif data == "help":
         handle_command(chat_id, "help", user_id=uid)
+    elif data == "premium":
+        keyboard = get_premium_menu()
+        send_message(
+            chat_id,
+            "*\U0001F451 Crypto Signals Premium*\n\n"
+            "Unlock everything:\n"
+            "\U00002705 All 12+ symbols\n"
+            "\U00002705 Advanced signals + alerts\n"
+            "\U00002705 Unlimited paper trading\n"
+            "\U00002705 Trade history export\n"
+            "\U00002705 API access (1000 req/day)\n"
+            "\U00002705 Priority support\n\n"
+            "*$5/month* — cancel anytime\n\n"
+            "Tap below to upgrade:",
+            reply_markup=keyboard,
+        )
     elif data.startswith("signal_"):
         symbol = data.replace("signal_", "")
         send_message(chat_id, f"Fetching {symbol} signal...")
