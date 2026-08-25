@@ -1,1 +1,6 @@
-flask==3.0.0\npython-telegram-bot==21.6\nrequests==2.32.3\npandas==2.2.2\nnumpy==1.26.4\ngunicorn==23.0.0\n
+flask==3.0.0
+python-telegram-bot==21.6
+requests==2.32.3
+pandas==2.2.2
+numpy==1.26.4
+gunicorn==23.0.0
